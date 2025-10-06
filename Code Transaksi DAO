@@ -1,27 +1,29 @@
 package org.example.Model;
 
-import java.sql.*;
+
+import com.zaxxer.hikari.HikariDataSource;
+import org.example.Util.DatabaseUtil;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TransaksiDAO {
-
-    private Connection conn;
+    private HikariDataSource dataSource;
 
     public TransaksiDAO() {
-        try {
-            String url = "jdbc:mysql://localhost:3306/laundrydb";
-            String user = "root";
-            String password = "";
-            conn = DriverManager.getConnection(url, user, password);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        this.dataSource = DatabaseUtil.getDataSource();
     }
 
     public boolean simpanTransaksi(Transaksi transaksi) throws SQLException {
-        String sql = "INSERT INTO transaksi (id_pelanggan, nama_pelanggan, berat, jumlah, layanan, total_harga, bayar, kembalian, tanggal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String query = "INSERT INTO transaksi (id_pelanggan, nama_pelanggan, berat, jumlah, layanan, total_harga, bayar, kembalian) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
             stmt.setString(1, transaksi.getIdPelanggan());
             stmt.setString(2, transaksi.getNamaPelanggan());
             stmt.setInt(3, transaksi.getBerat());
@@ -30,31 +32,34 @@ public class TransaksiDAO {
             stmt.setInt(6, transaksi.getTotalHarga());
             stmt.setInt(7, transaksi.getBayar());
             stmt.setInt(8, transaksi.getKembalian());
-            return stmt.executeUpdate() > 0;
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
         }
     }
 
     public List<Transaksi> getAllTransaksi() throws SQLException {
-        List<Transaksi> list = new ArrayList<>();
-        String sql = "SELECT * FROM transaksi ORDER BY tanggal DESC";
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        List<Transaksi> transaksiList = new ArrayList<>();
+        String query = "SELECT * FROM transaksi";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                Transaksi t = new Transaksi();
-                t.setIdTransaksi(rs.getInt("id_transaksi"));
-                t.setIdPelanggan(rs.getString("id_pelanggan"));
-                t.setNamaPelanggan(rs.getString("nama_pelanggan"));
-                t.setBerat(rs.getInt("berat"));
-                t.setJumlah(rs.getInt("jumlah"));
-                t.setLayanan(rs.getString("layanan"));
-                t.setTotalHarga(rs.getInt("total_harga"));
-                t.setBayar(rs.getInt("bayar"));
-                t.setKembalian(rs.getInt("kembalian"));
-                t.setTanggal(rs.getTimestamp("tanggal").toLocalDateTime());
-                list.add(t);
+                Transaksi transaksi = new Transaksi();
+                transaksi.setIdPelanggan(rs.getString("id_pelanggan"));
+                transaksi.setNamaPelanggan(rs.getString("nama_pelanggan"));
+                transaksi.setBerat(rs.getInt("berat"));
+                transaksi.setJumlah(rs.getInt("jumlah"));
+                transaksi.setLayanan(rs.getString("layanan"));
+                transaksi.setTotalHarga(rs.getInt("total_harga"));
+                transaksi.setBayar(rs.getInt("bayar"));
+                transaksi.setKembalian(rs.getInt("kembalian"));
+
+                transaksiList.add(transaksi);
             }
         }
-        return list;
+        return transaksiList;
     }
 }
